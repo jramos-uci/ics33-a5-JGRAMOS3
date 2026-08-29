@@ -14,19 +14,44 @@ def _fmt_item(item: Item) -> str:
     )
 
 
+def _engine_for(args: argparse.Namespace) -> QueryEngine:
+    return QueryEngine(JSONInventorySource(args.data))
+
+
 def cmd_list(args: argparse.Namespace) -> int:
-    # TODO: Use QueryEngine methods; print matching items with _fmt_item.
-    raise NotImplementedError
+    engine = _engine_for(args)
+    if args.rarity is None:
+        items = engine.walk_items()
+    else:
+        items = engine.filter_items(lambda item: item.rarity == args.rarity)
+
+    for item in items:
+        print(_fmt_item(item))
+    return 0
 
 
 def cmd_find(args: argparse.Namespace) -> int:
-    # TODO: Return 0 for a hit. For a miss, print exactly "Not found" and return 1.
-    raise NotImplementedError
+    engine = _engine_for(args)
+    item = engine.find_item_by_sku(args.sku)
+    if item is None:
+        print("Not found")
+        return 1
+
+    print(_fmt_item(item))
+    return 0
 
 
 def cmd_value(args: argparse.Namespace) -> int:
-    # TODO: Print the total with exactly two decimal places and return 0.
-    raise NotImplementedError
+    engine = _engine_for(args)
+
+    def add_item_value(total: float, item: Item) -> float:
+        if args.rarity is not None and item.rarity != args.rarity:
+            return total
+        return total + item.qty * item.base_price
+
+    total = engine.reduce_items(add_item_value, 0.0)
+    print(f"{total:.2f}")
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
